@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">网页壳工厂</string>
+    <string name="share_target_label">做成 App</string>
+
+    <!-- 列表页 -->
+    <string name="main_empty">还没有生成任何 App。\n点右下角「新建」，输入一个网址即可。\n\n也可以在浏览器里点「分享」→「做成 App」。</string>
+    <string name="main_new">新建</string>
+    <string name="status_installed">已安装</string>
+    <string name="status_outdated">已安装 · 有改动未生成</string>
+    <string name="status_not_installed">未安装</string>
+
+    <!-- 编辑页 -->
+    <string name="edit_title_new">新建 App</string>
+    <string name="edit_title_existing">编辑 App</string>
+    <string name="edit_url">网址</string>
+    <string name="edit_fetch">读取网页信息</string>
+    <string name="edit_fetching">正在读取网页信息…</string>
+    <string name="edit_fetch_done">已根据网页自动填写，可以修改</string>
+    <string name="edit_fetch_failed">读取失败：%1$s。可以手动填写</string>
+    <string name="edit_fetch_challenge">网站有人机验证，正在用浏览器内核通过…</string>
+    <string name="edit_fetch_challenge_failed">网站有人机验证，未能自动读取。已按网址填写，请手动修改名称和图标</string>
+    <string name="challenge_title">网站人机验证</string>
+    <string name="challenge_message">这个网站开启了人机验证（如 Cloudflare），正在自动通过。如果下面出现勾选框，请点一下。</string>
+    <string name="edit_icon">图标</string>
+    <string name="edit_icon_letter">首字母</string>
+    <string name="edit_icon_gallery">相册</string>
+    <string name="edit_name">名称</string>
+    <string name="edit_theme_color">主题色（状态栏、导航栏、图标底色）</string>
+    <string name="edit_theme_color_hex">#RRGGBB</string>
+    <string name="edit_hosts">在 App 内打开的域名</string>
+    <string name="edit_hosts_helper">逗号或换行分隔，自动包含子域名；其它链接用浏览器打开</string>
+    <string name="edit_pull_to_refresh">下拉刷新</string>
+    <string name="edit_force_dark">系统深色模式时，强制把网页变暗</string>
+    <string name="edit_advanced">高级选项</string>
+    <string name="edit_id">包名后缀</string>
+    <string name="edit_id_helper">完整包名：com.yuanfeng.webshell.%1$s。安装后不能再改</string>
+    <string name="edit_user_agent">User-Agent（留空用默认；{default} 代表默认值）</string>
+    <string name="edit_inject_css">注入 CSS（例如隐藏网站顶栏）</string>
+    <string name="edit_inject_js">注入 JS（页面加载完成后执行）</string>
+    <string name="edit_build_install">生成并安装</string>
+    <string name="edit_building">正在生成…</string>
+    <string name="edit_open">打开</string>
+    <string name="edit_uninstall">卸载</string>
+    <string name="edit_delete">删除记录</string>
+    <string name="edit_delete_confirm">只删除工厂里的记录，已安装的 App 不受影响。确定？</string>
+    <string name="edit_cancel">取消</string>
+    <string name="edit_ok">确定</string>
+
+    <!-- 校验 -->
+    <string name="error_url">请输入有效的网址（http:// 或 https://）</string>
+    <string name="error_name">名称不能为空</string>
+    <string name="error_color">颜色格式应为 #RRGGBB</string>
+    <string name="error_id">包名后缀%1$s</string>
+    <string name="error_id_taken">这个包名后缀已被另一条记录使用</string>
+
+    <!-- 安装 -->
+    <string name="install_permission_title">需要「安装未知应用」权限</string>
+    <string name="install_permission_message">工厂要把生成的 App 装到手机上，需要你在接下来的系统设置页里允许「网页壳工厂」安装未知应用。设置好后返回，再点一次「生成并安装」。</string>
+    <string name="install_permission_go">去设置</string>
+    <string name="install_success">%1$s 已安装</string>
+    <string name="install_failed">安装失败：%1$s</string>
+    <string name="build_failed">生成失败：%1$s</string>
+</resources>

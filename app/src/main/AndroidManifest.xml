@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  所有 App 共用这一份 Manifest。包名(applicationId)由 Gradle 按 flavor 注入，
+  ${applicationId} / ${appLabel} / ${usesCleartextTraffic} 这类占位符在构建时被替换。
+  App 名称用字面字符串而不是 @string 资源：手机上的工厂 App 只改写这份二进制 Manifest，
+  不修改 resources.arsc，所以名称、包名、明文开关都必须直接写在 Manifest 里。
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      以下权限只是「声明可以申请」，安装时不会授予。
+      只有当网页真的调用摄像头 / 麦克风 / 定位时，App 才会弹出系统权限对话框（见 PermissionBroker）。
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Android 8~9 用 DownloadManager 写入公共 Download 目录需要此权限；Android 10+ 不需要 -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- 声明这些硬件是「可选」的，避免没有摄像头的设备无法安装 -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="${appLabel}"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.WebShell.Starting"
+        android:usesCleartextTraffic="${usesCleartextTraffic}">
+
+        <!--
+          configChanges：旋转屏幕、折叠屏展开、外接键盘时不重建 Activity，WebView 不会重新加载。
+          故意不包含 uiMode：切换系统深色模式时让 Activity 重建，WebView 才能拿到新的深/浅色主题
+          （页面状态由 saveState/restoreState 恢复）。
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          FileProvider：把拍照得到的临时文件以 content:// URI 的形式交给相机 App 写入。
+          authority 必须带 ${applicationId}，否则多个 App 同时安装时 authority 冲突，第二个装不上。
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>

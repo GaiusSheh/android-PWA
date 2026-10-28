@@ -1,0 +1,31 @@
+# Gradle / Kotlin 构建产物与缓存
+.gradle/
+.kotlin/
+build/
+buildSrc/build/
+buildSrc/.gradle/
+buildSrc/.kotlin/
+
+# 输出的 APK
+dist/
+
+# WSA / 真机端到端自测的截图和界面转储
+.dev/tests/wsa/output/
+
+# 本机配置：SDK 路径、签名密钥（绝不能提交）
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.iml
+.vscode/
+captures/
+.cxx/
+.externalNativeBuild/
+
+# 系统
+.DS_Store
+Thumbs.db

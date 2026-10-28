@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="error_title">页面加载失败</string>
+    <string name="error_retry">重试</string>
+    <string name="no_app_to_open">没有可以打开此链接的应用</string>
+    <string name="file_chooser_title">选择文件</string>
+    <string name="download_started">开始下载：%1$s</string>
+    <string name="download_unsupported">暂不支持这种下载方式</string>
+    <string name="download_permission_denied">需要存储权限才能下载文件</string>
+    <string name="download_failed">下载失败：%1$s</string>
+</resources>

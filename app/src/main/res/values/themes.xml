@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      主题。DayNight 会跟随系统深色模式切换；WebView 的 algorithmic darkening
+      （forceDarkMode）和网页的 prefers-color-scheme 都以这个主题是深色还是浅色为准。
+      注意：这里不引用任何「每个 App 不同」的资源（如 themeColor），因为工厂改写模板 APK 时
+      不修改 resources.arsc；每个 App 的颜色由代码从 config.json 读取后设置。
+    -->
+    <style name="Theme.WebShell" parent="Theme.AppCompat.DayNight.NoActionBar" />
+
+    <!--
+      启动页主题（Android 12+ SplashScreen API；core-splashscreen 库在 Android 8~11 上模拟同样效果）。
+      背景使用系统默认的浅色 / 深色背景，中间显示 App 图标；首屏内容出来后切换到 postSplashScreenTheme。
+    -->
+    <style name="Theme.WebShell.Starting" parent="Theme.SplashScreen">
+        <item name="postSplashScreenTheme">@style/Theme.WebShell</item>
+    </style>
+</resources>

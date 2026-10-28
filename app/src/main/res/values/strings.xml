@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 默认（英文）界面文字；中文见 values-zh/strings.xml。app_name 由构建期生成，不在这里。 -->
+<resources>
+    <string name="error_title">Can\'t load this page</string>
+    <string name="error_retry">Retry</string>
+    <string name="no_app_to_open">No app can open this link</string>
+    <string name="file_chooser_title">Choose file</string>
+    <string name="download_started">Downloading %1$s</string>
+    <string name="download_unsupported">This kind of download is not supported</string>
+    <string name="download_permission_denied">Storage permission is required to download files</string>
+    <string name="download_failed">Download failed: %1$s</string>
+</resources>

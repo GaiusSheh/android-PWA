@@ -1,0 +1,15 @@
+* text=auto
+
+# Shell 脚本必须是 LF，否则在 Linux CI / WSL 上 shebang 变成 "#!/usr/bin/env bash\r" 无法执行
+*.sh    text eol=lf
+gradlew text eol=lf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jar binary
+*.jks binary
+*.keystore binary
+*.apk binary

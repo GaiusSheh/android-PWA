@@ -1,0 +1,4 @@
+/* 注入示例：隐藏移动版页脚的版权 / 链接区，让页面更像 App。 */
+.minerva-footer {
+  display: none !important;
+}

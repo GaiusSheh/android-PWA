@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 工厂图标：一个浏览器窗口 + 加号。画布 108dp，图形在中心 66dp 安全区内 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 窗口外框 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M36,34h36a6,6 0,0 1,6 6v28a6,6 0,0 1,-6 6h-36a6,6 0,0 1,-6 -6v-28a6,6 0,0 1,6 -6zM36,46v22h36v-22z" />
+    <!-- 标题栏的三个圆点 -->
+    <path
+        android:fillColor="#FF3F51B5"
+        android:pathData="M37,40m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0M43,40m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0M49,40m-2,0a2,2 0,1 1,4 0a2,2 0,1 1,-4 0" />
+    <!-- 加号 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M52,50h4v6h6v4h-6v6h-4v-6h-6v-4h6z" />
+</vector>

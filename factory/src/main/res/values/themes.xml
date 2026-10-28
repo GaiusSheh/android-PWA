@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material 3，跟随系统深 / 浅色 -->
+    <style name="Theme.Factory" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand</item>
+        <!-- 改了 primary 必须同时改 onPrimary，否则深色模式下按钮文字是默认的深紫色，看不清 -->
+        <item name="colorOnPrimary">@android:color/white</item>
+    </style>
+</resources>

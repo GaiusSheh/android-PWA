@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 可以对外分享的目录：仅限 cache/camera/（拍照 / 录像的临时文件） -->
+<paths>
+    <cache-path name="camera" path="camera/" />
+</paths>

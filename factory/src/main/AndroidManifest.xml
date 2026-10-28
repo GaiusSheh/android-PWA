@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 安装 / 卸载生成的 App。安装权限需要用户在系统设置里为本 App 打开「安装未知应用」 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Android 12+：更新「由本工厂安装的 App」时免去确认弹窗（配合 SessionParams.USER_ACTION_NOT_REQUIRED） -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+
+    <!--
+      Android 11+ 的「软件包可见性」：默认看不到其它 App，就无法判断生成的 App 是否已安装、也无法启动它。
+      生成的 App 都有桌面启动入口，声明这个 intent 查询即可看到它们（以及其它有桌面图标的 App）。
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Factory">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          编辑 / 新建页面。也接收浏览器「分享」过来的网址：在浏览器里点分享 → 做成 App。
+          configChanges：旋转屏幕时不重建，避免丢失已读取到的图标候选
+        -->
+        <activity
+            android:name=".ui.EditActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden"
+            android:exported="true"
+            android:label="@string/share_target_label"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!-- 接收系统安装器的结果（需要用户确认、成功、失败） -->
+        <receiver
+            android:name=".install.InstallResultReceiver"
+            android:exported="false" />
+    </application>
+</manifest>

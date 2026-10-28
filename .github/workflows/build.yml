@@ -1,0 +1,97 @@
+# 按 apps.json 动态生成 matrix，每个 App 一个并行 job。
+#
+# - push 到 main：构建并上传为 Actions artifact（在该次运行的页面下载，默认保留 90 天）
+# - push v* tag：构建，并强制要求正式 keystore，然后把全部 APK 上传到同名 GitHub Release
+# - 也可以在 Actions 页面手动触发（workflow_dispatch）
+#
+# 需要的 Secrets（Settings → Secrets and variables → Actions），生成方法见 README：
+#   KEYSTORE_BASE64     release keystore 文件的 base64
+#   KEYSTORE_PASSWORD   keystore 密码
+#   KEY_ALIAS           密钥别名
+#   KEY_PASSWORD        密钥密码
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      ids: ${{ steps.ids.outputs.ids }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: ids
+        # 输出形如 ["wikipedia","hackernews"] 的 JSON 数组，供下面的 matrix 使用。
+        # 故意不构建工厂 App：它的 APK 内含签名私钥，公开仓库的 artifact / Release 任何人都能下载
+        run: echo "ids=$(jq -c '[.apps[].id]' apps.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        id: ${{ fromJson(needs.matrix.outputs.ids) }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # 必须拉全量历史和 tag：versionCode = commit 数，versionName 来自 tag
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v4
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "WEBSHELL_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::未配置 KEYSTORE_BASE64，APK 将使用 debug 签名"
+          fi
+
+      - name: Build
+        env:
+          WEBSHELL_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          WEBSHELL_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          WEBSHELL_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          # 打 tag 发布时禁止 debug 签名兜底，缺 keystore 直接失败
+          WEBSHELL_REQUIRE_RELEASE_KEYSTORE: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: ./build.sh "${{ matrix.id }}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: apk-${{ matrix.id }}
+          path: dist/*.apk
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: apk-*
+          path: dist
+          merge-multiple: true
+      - name: Upload to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.apk \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes \
+          || gh release upload "$GITHUB_REF_NAME" dist/*.apk --repo "$GITHUB_REPOSITORY" --clobber

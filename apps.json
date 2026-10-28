@@ -1,0 +1,29 @@
+{
+  "_comment": "每个条目生成一个独立 App（独立包名 com.yuanfeng.webshell.<id>）。字段说明见 README.md「apps.json 字段」。以 _ 开头的键会被忽略，可当注释用。",
+  "apps": [
+    {
+      "_comment": "示例 1：普通网站。不提供 icon → 自动生成首字母图标；开启下拉刷新。",
+      "id": "wikipedia",
+      "name": "Wikipedia",
+      "url": "https://en.m.wikipedia.org/",
+      "themeColor": "#FFFFFF",
+      "allowedHosts": ["wikipedia.org", "wikimedia.org"],
+      "injectCss": "apps/wikipedia/inject.css",
+      "enablePullToRefresh": true,
+      "forceDarkMode": false
+    },
+    {
+      "_comment": "示例 2：需要登录的网站（账号密码表单登录，Cookie 持久化后保持登录）。HN 没有深色主题，用 forceDarkMode 在系统深色模式下压暗。",
+      "id": "hackernews",
+      "name": "Hacker News",
+      "url": "https://news.ycombinator.com/",
+      "icon": "apps/hackernews/icon.png",
+      "themeColor": "#FF6600",
+      "allowedHosts": ["news.ycombinator.com"],
+      "injectCss": "apps/hackernews/inject.css",
+      "injectJs": "apps/hackernews/inject.js",
+      "enablePullToRefresh": true,
+      "forceDarkMode": true
+    }
+  ]
+}

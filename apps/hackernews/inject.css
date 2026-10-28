@@ -1,0 +1,10 @@
+/* 注入示例：HN 的字号在手机上偏小，放大正文并加大投票箭头的点击区域。 */
+html[data-webshell] body,
+html[data-webshell] td {
+  font-size: 15px !important;
+}
+
+html[data-webshell] .votearrow {
+  transform: scale(1.4);
+  margin: 4px 6px !important;
+}
