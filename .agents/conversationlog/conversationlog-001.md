@@ -91,12 +91,69 @@
 
 ---
 
+## Session: 2026-10-29 第三方登录（Phase 2）
+
+**对话元数据**:
+- 时间: 2026-10-29 00:20 - 11:55
+- 关键词: `oauth`, `google-login`, `disallowed_useragent`, `SetSID`, `csp-form-action`, `window.opener`, `onCreateWindow`, `hasGesture`, `TWA`
+- 工作目录: `~/OneDrive/Codes/my-tools/android-PWA`
+- 项目规则入口: `.agents/AGENTS.md`
+- 参与 agent:
+  - Claude Code (env: windows-native):
+    - Session ID: `39c9b59b-6a9c-458b-912d-daa312259497`
+    - 原始记录: `~/.claude/projects/c--Users-Shi-Y-OneDrive-Codes-my-tools-android-PWA/39c9b59b-6a9c-458b-912d-daa312259497.jsonl`
+    - 恢复命令: `claude --resume 39c9b59b-6a9c-458b-912d-daa312259497`
+
+**快速恢复对话**：同环境用上方恢复命令；跨环境走 `skills/handover` 软接力，不 resume。
+
+### 核心技术决策
+
+#### 1. 项目定位（用户明确）
+- 本项目给**没有自己适配 PWA 的网站**做 App → 网站不配合：不能放 assetlinks.json、不能登记 OAuth 回调。TWA 全屏、App Links、AppAuth 回调都排除
+- 调研过的替代方案：TWA（无 assetlinks 时退化为带地址栏的 Custom Tab，地址栏无法隐藏）；Chrome「安装应用」（Chromium 2026-10 合入「任意页面装为 DIY WebAPK」，手机端默认关闭）；GeckoView（体积大、无可靠实测）。都失去「每 App 独立 Cookie / 可注入」，未采用
+
+#### 2. 探路：Google 到底拦不拦 WebView（`.dev/tests/google-login/findings.md`）
+- 用户想先探 UA 伪装 → 实测发现**原样 WebView（带 `; wv`、带 `X-Requested-With`）在 WSA（WebView 118）和真机（nubia，WebView 156）都能完成 Google 登录**，不需要伪装
+- 失败真因：登录链路 `accounts.google.com → CheckCookie → accounts.youtube.com/accounts/SetSID → accounts.google.<地区，英国为 co.uk>/accounts/SetSID → consent → 网站回调`，任何一跳不在 allowedHosts 就被交给浏览器，会话断开，浏览器里报 400
+- 探路方法：debug 版开 WebView 远程调试，adb forward 后用 Node 直连 CDP（切 UA、读 Cookie、记录每次重定向的 `Location` 头）
+
+#### 3. 方案（用户确认，计划 `.dev/plans/implemented/phase2-third-party-login.md`）
+- **入口规则 + 流程内放行**：不把 google.com 等加白名单（会让普通 YouTube / GitHub 链接也在 App 内打开），而是 `AuthRules` 只匹配登录专用域名 / 路径；进入后整个流程留在 App 内，回到 allowedHosts 结束。Google 地区域名用官方 supported_domains 列表（187 个），不用正则
+- **CSP 接管**：PF 的「Continue with Google」表单 POST 后 303 到 Google，被 PF 自己的 CSP `form-action 'self'` 拦下（桌面 Edge 156 同样复现，属网站 bug）。旧壳因抢先转交浏览器没暴露。改为：从网站跳往登录入口的重定向由壳取消并 `loadUrl` 重发
+- **弹窗登录**：开多窗口，临时 WebView 按第一个地址分流（登录 → 全屏弹窗；站内 → 主 WebView；站外 → 浏览器；非点击 → 丢弃）
+- 用户确认：提供方清单不增删；弹窗样式全屏 + 细顶栏；返回键跳过登录页先不做；接受行为变化
+
+#### 4. 验收中追加：非点击外部跳转确认（方案 A）
+- 起因：Pinterest 登录后网页自动跳 Google Play 推广 App
+- ~~直接丢弃~~ [!] 会误伤「点支付 → 后台下单 → 拉起支付 App」→ 改为弹确认框（同 Chrome）
+- 实测服务器重定向请求 `hasGesture()` 为 false → 论坛外链 / 点击统计链接会每次弹框 → 主框架导航链沿用链头点击状态（用户确认）
+
+### 技术调整/突破
+- 回归脚本误判：PF `/forums/` 301 到首页，站内 `_blank` 测试改用 `/help/`
+- 一次构建失败没注意到（删调试日志时 Edit 把换行一起删了），导致一轮回归跑在旧包上 → 之后每次都核对 APK 构建时间晚于代码修改时间
+- 判断网站登录模式：`gis_probe.mjs` 在登录页用 CDP `Input.dispatchMouseEvent` 真实点击 Google 按钮，看是出现新页面（弹窗，Pinterest，地址带 `gislp=1`）还是主页面跳走（Kaggle）
+
+### 重要代码与文档创建
+- `app/.../AuthRules.kt`、`PopupWindows.kt`（新）；`ShellWebViewClient`（登录流程、CSP 接管、点击状态链）、`MainActivity`（弹窗接入、确认框、状态保存）、`ShellChromeClient`（onCreateWindow）、`ExternalLinks.describe`
+- `app/src/test/.../AuthRulesTest.kt`（app 模块首个单元测试，任务 `:app:testTemplateDebugUnitTest`）
+- `.dev/tests/google-login/`：探路与回归脚本、`findings.md`（含复测所需的临时 apps.json 条目）
+- README：allowedHosts 说明、体验细节表、已知限制、目录结构、TWA 对比表
+
+### 技术洞察
+- WSA `dumpsys window` 的 `mCurrentFocus` 为 null，无法自动判断对话框 → 用截图核对；WSA 的 WebView 只有 118
+- nubia 真机：`adb install` 报 `Caller has no access to session -1`（含 `--no-streaming`）→ `adb push` 到 `/sdcard/Download/` 由用户手动安装；logcat 没有 `ActivityTaskManager START` 记录；无线调试熄屏会断、换网络后 IP / 端口会变
+- `adb push` 保留源文件修改时间，手机上看到的是构建时间
+- 覆盖安装保留 App 数据（Cookie），从零测登录前要 `pm clear`
+- 熄屏 / App 在后台时 WebView DevTools 端口不响应或 `Runtime.evaluate` 挂起
+
+---
+
 ## 统计信息
 
-- **记录的主题 Session 数量**：1 个
-- **关联的 agent 会话数量**：1 个
-- **覆盖时间**：2026-10-27 ~ 2026-10-28
-- **主要主题**：Android WebView 壳、Gradle 批量 flavor、手机端 APK 改写与签名、人机验证处理
+- **记录的主题 Session 数量**：2 个
+- **关联的 agent 会话数量**：2 个
+- **覆盖时间**：2026-10-27 ~ 2026-10-29
+- **主要主题**：Android WebView 壳、Gradle 批量 flavor、手机端 APK 改写与签名、人机验证处理、第三方登录（OAuth）与新窗口分流
 
 ---
 

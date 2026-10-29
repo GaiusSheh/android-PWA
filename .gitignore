@@ -11,6 +11,8 @@ dist/
 
 # WSA / 真机端到端自测的截图和界面转储
 .dev/tests/wsa/output/
+# 登录测试的截图、导航记录（含个人账号页面、OAuth 回调参数）
+.dev/tests/google-login/output/
 
 # 本机配置：SDK 路径、签名密钥（绝不能提交）
 local.properties

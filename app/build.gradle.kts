@@ -101,6 +101,8 @@ dependencies {
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.swiperefreshlayout)
     implementation(libs.androidx.core.splashscreen)
+
+    testImplementation(libs.junit)
 }
 
 // ---------------------------------------------------------------------------

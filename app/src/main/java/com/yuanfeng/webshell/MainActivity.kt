@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Message
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
@@ -20,6 +21,7 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.ColorUtils
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -42,24 +44,29 @@ import androidx.webkit.WebViewFeature
  *   在 onCreate 里 restoreState。
  * - 所有 UI 操作都必须在主线程。
  */
-class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeClient.Host {
+class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeClient.Host, PopupWindows.Host {
 
     // 这两个对象内部调用了 registerForActivityResult，必须在 onCreate 之前构造（作为属性初始化）
     private val permissions = PermissionBroker(this)
     private val fileChooser = FileChooser(this, permissions)
 
     private lateinit var webView: WebView
+    private lateinit var shellWebViewClient: ShellWebViewClient
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var progress: ProgressBar
     private lateinit var errorView: View
     private lateinit var errorDetail: TextView
     private lateinit var fullscreenContainer: FrameLayout
     private lateinit var injector: Injector
+    private lateinit var popups: PopupWindows
     private var refreshGuard: RefreshGuard? = null
 
     /** 网页视频全屏时 WebView 交给我们的 View 和回调 */
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+
+    /** 「网页想打开其它应用」的确认框（见 openExternally） */
+    private var externalConfirm: AlertDialog? = null
 
     /** 当前主文档是否加载失败（失败时显示原生错误页而不是 WebView 自带的错误页） */
     private var mainFrameFailed = false
@@ -74,13 +81,15 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
     private var urlBeforeRendererGone: String? = null
 
     /**
-     * 返回键处理：全屏视频 → 退出全屏；网页能后退 → 后退；都不是 → 不拦截，交给系统（退出 App）。
+     * 返回键处理：全屏视频 → 退出全屏；登录弹窗 → 弹窗内后退或关闭弹窗；网页能后退 → 后退；
+     * 都不是 → 不拦截，交给系统（退出 App）。
      * 只在「需要拦截」时启用这个回调，这样 Android 14+ 的预测性返回动画也能正确显示。
      */
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             when {
                 customView != null -> exitFullscreen()
+                popups.isShowing -> popups.back()
                 webView.canGoBack() -> webView.goBack()
                 else -> {
                     isEnabled = false
@@ -117,10 +126,20 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
         splash.setKeepOnScreenCondition { !firstContentReady && SystemClock.uptimeMillis() < splashDeadline }
 
         setupWebView()
+        popups = PopupWindows(
+            context = this,
+            mainWebView = webView,
+            container = findViewById(R.id.popup_container),
+            holder = findViewById(R.id.popup_web_holder),
+            title = findViewById(R.id.popup_title),
+            host = this,
+        )
+        findViewById<View>(R.id.popup_close).setOnClickListener { popups.close() }
         setupPullToRefresh()
         onBackPressedDispatcher.addCallback(this, backCallback)
 
-        // 进程被杀 / 深色模式切换导致的重建：恢复 WebView 的历史栈和当前页面
+        // 进程被杀 / 深色模式切换导致的重建：恢复 WebView 的历史栈和当前页面，以及是否正在登录
+        shellWebViewClient.authFlowActive = savedInstanceState?.getBoolean(KEY_AUTH_FLOW) ?: false
         val restored = savedInstanceState?.getBundle(KEY_WEBVIEW_STATE)?.let { webView.restoreState(it) } != null
         if (!restored) {
             webView.loadUrl(savedInstanceState?.getString(KEY_LAST_URL) ?: ShellConfig.startUrl)
@@ -184,7 +203,7 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
             javaScriptEnabled = true
             domStorageEnabled = true            // localStorage / sessionStorage，大多数现代网站必需
             javaScriptCanOpenWindowsAutomatically = true
-            setSupportMultipleWindows(false)    // target=_blank / window.open 在当前 WebView 内打开
+            setSupportMultipleWindows(true)     // target=_blank / window.open 交给 PopupWindows 分流
             loadWithOverviewMode = true
             useWideViewPort = true
             setSupportZoom(true)
@@ -213,7 +232,8 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
         // debug 版可以在电脑 Chrome 打开 chrome://inspect 调试网页
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
 
-        webView.webViewClient = ShellWebViewClient(this)
+        shellWebViewClient = ShellWebViewClient(this)
+        webView.webViewClient = shellWebViewClient
         webView.webChromeClient = ShellChromeClient(this, permissions, fileChooser)
         webView.setDownloadListener(DownloadHandler(this, webView, permissions))
     }
@@ -239,10 +259,12 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
     override fun onResume() {
         super.onResume()
         if (!webViewGone) webView.onResume()
+        popups.onResume()
     }
 
     override fun onPause() {
         if (!webViewGone) webView.onPause()
+        popups.onPause()
         // 确保 Cookie（登录状态）写入磁盘；否则进程被杀时最近的 Cookie 可能丢失
         CookieManager.getInstance().flush()
         super.onPause()
@@ -250,6 +272,7 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putBoolean(KEY_AUTH_FLOW, shellWebViewClient.authFlowActive)
         if (webViewGone) {
             urlBeforeRendererGone?.let { outState.putString(KEY_LAST_URL, it) }
             return
@@ -260,6 +283,8 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
     }
 
     override fun onDestroy() {
+        externalConfirm?.dismiss()
+        popups.destroy()
         if (!webViewGone) {
             // WebView 持有大量 native 资源，Activity 销毁时必须先从布局里移除再 destroy，避免内存泄漏
             webView.stopLoading()
@@ -310,8 +335,25 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
 
     override fun onHistoryChanged() = updateBackCallback()
 
-    override fun openExternally(uri: Uri) {
-        ExternalLinks.open(this, uri) { url -> webView.loadUrl(url) }
+    /**
+     * 不是用户点击触发的外部跳转（网页自动跳应用商店、广告拉起其它 App 等）先弹窗确认，和 Chrome 的做法一致。
+     * 不直接丢弃：「点支付 → 后台下单 → 再拉起支付 App」这类正常流程中间隔了网络请求，WebView 也不认为是点击。
+     * 同一时间只显示一个确认框，已有时忽略新的请求，避免被连续弹窗。
+     */
+    override fun openExternally(uri: Uri, userInitiated: Boolean) {
+        val open = { ExternalLinks.open(this, uri) { url -> webView.loadUrl(url) } }
+        if (userInitiated) {
+            open()
+            return
+        }
+        if (externalConfirm?.isShowing == true) return
+        val isWeb = uri.scheme.equals("http", ignoreCase = true) || uri.scheme.equals("https", ignoreCase = true)
+        externalConfirm = AlertDialog.Builder(this)
+            .setTitle(if (isWeb) R.string.external_confirm_browser else R.string.external_confirm_app)
+            .setMessage(ExternalLinks.describe(uri))
+            .setPositiveButton(R.string.external_confirm_open) { _, _ -> open() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     override fun onRenderProcessGone(view: WebView) {
@@ -365,6 +407,15 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
         updateBackCallback()
     }
 
+    override fun onCreateWindow(isUserGesture: Boolean, resultMsg: Message): Boolean =
+        popups.create(isUserGesture, resultMsg)
+
+    // ------------------------------------------------------------------
+    // PopupWindows.Host（openExternally 与 ShellWebViewClient.Host 共用同一个实现）
+    // ------------------------------------------------------------------
+
+    override fun onPopupChanged() = updateBackCallback()
+
     // ------------------------------------------------------------------
     // 其它
     // ------------------------------------------------------------------
@@ -377,12 +428,13 @@ class MainActivity : AppCompatActivity(), ShellWebViewClient.Host, ShellChromeCl
 
     private fun updateBackCallback() {
         if (webViewGone) return
-        backCallback.isEnabled = customView != null || webView.canGoBack()
+        backCallback.isEnabled = customView != null || popups.isShowing || webView.canGoBack()
     }
 
     private companion object {
         const val KEY_WEBVIEW_STATE = "webshell.webview_state"
         const val KEY_LAST_URL = "webshell.last_url"
+        const val KEY_AUTH_FLOW = "webshell.auth_flow"
         /** 启动页最长显示时间：网页很慢时也不要一直卡在启动页 */
         const val SPLASH_MAX_MS = 2500L
     }

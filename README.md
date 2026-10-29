@@ -145,7 +145,7 @@ webshell.buildRoot=C:/Users/<你>/AppData/Local/webshell-build
 | `url` | ✓ | 启动页，`http://` 或 `https://` |
 | `icon` |  | PNG 路径（相对于工程根目录），建议 512×512 以上。不填则用 themeColor 作底色、自动生成首字母图标。PNG 四角透明（logo 类）时缩放进安全区，四角不透明（方形图标）时铺满可见区 |
 | `themeColor` |  | `#RRGGBB` 或 `#AARRGGBB`，默认 `#FFFFFF`。用于状态栏、导航栏，以及自动生成图标的底色。状态栏图标的深浅色会按亮度自动选择。启动页背景用系统默认的浅色或深色，不用这个颜色 |
-| `allowedHosts` |  | 这些域名**及其所有子域名**在 App 内打开，例如写 `example.com` 就包含 `m.example.com`。其它链接交给系统浏览器。默认只包含 url 的域名。**登录跳转到第三方域名**（如 SSO）时要把那个域名也加进来 |
+| `allowedHosts` |  | 这些域名**及其所有子域名**在 App 内打开，例如写 `example.com` 就包含 `m.example.com`。其它链接交给系统浏览器。默认只包含 url 的域名。常见的第三方登录（Google、Microsoft、Apple、GitHub 等）**不需要**加进来，壳内置了登录规则，见[体验细节](#体验细节怎么实现)「第三方登录」；内置规则没覆盖的登录入口（例如学校、公司自己的 SSO 入口域名）才需要手动加 |
 | `userAgent` |  | 覆盖 User-Agent。`{default}` 会替换为 WebView 的默认 UA |
 | `injectCss` / `injectJs` |  | 注入的 CSS / JS 文件路径。CSS 在首屏可见和加载完成时各注入一次，JS 在加载完成时执行一次 |
 | `enablePullToRefresh` |  | 下拉刷新，默认 `false` |
@@ -335,8 +335,10 @@ app/src/main/
   AndroidManifest.xml
   java/com/yuanfeng/webshell/
     MainActivity.kt           ← 生命周期、edge-to-edge、启动页、返回键、全屏、错误页、状态恢复
-    ShellWebViewClient.kt     ← 链接分流、页面事件、错误、渲染进程崩溃
-    ShellChromeClient.kt      ← 进度、全屏视频、文件选择、摄像头 / 麦克风 / 定位权限
+    ShellWebViewClient.kt     ← 链接分流、登录流程、页面事件、错误、渲染进程崩溃
+    ShellChromeClient.kt      ← 进度、全屏视频、新窗口、文件选择、摄像头 / 麦克风 / 定位权限
+    AuthRules.kt              ← 第三方登录入口规则（所有 App 共用）
+    PopupWindows.kt           ← window.open / target=_blank 分流，登录弹窗
     FileChooser.kt            ← <input type=file>：多选 + 拍照 / 录像
     DownloadHandler.kt        ← DownloadManager（Cookie、UA、Referer、文件名）
     PermissionBroker.kt       ← 运行时权限请求队列
@@ -354,8 +356,10 @@ build.sh                      ← 本地一键构建
 | 需求 | 实现位置与做法 |
 |---|---|
 | Cookie 持久化（含第三方） | `MainActivity.setupWebView`：`setAcceptThirdPartyCookies`；`onPause` 时 `CookieManager.flush()` 立即落盘 |
-| 返回键 | `OnBackPressedCallback` 只在「全屏中」或「网页可后退」时启用，其余交给系统，兼容 Android 14+ 预测性返回动画 |
-| 外链 | `ShellWebViewClient.shouldOverrideUrlLoading`：白名单外的 http(s) 和所有非 http 协议交给 `ExternalLinks`；`intent:` 链接做了安全清洗，支持 `browser_fallback_url` |
+| 返回键 | `OnBackPressedCallback` 只在「全屏中」「登录弹窗打开中」或「网页可后退」时启用，其余交给系统，兼容 Android 14+ 预测性返回动画 |
+| 外链 | `ShellWebViewClient.shouldOverrideUrlLoading`：白名单外的 http(s) 和所有非 http 协议交给 `ExternalLinks`；`intent:` 链接做了安全清洗，支持 `browser_fallback_url`。不是用户点击触发的（网页脚本自动跳应用商店、广告拉起其它 App 等）先弹确认框，和 Chrome 一致；点击后经服务器重定向出去的（论坛外链、点击统计链接）仍算点击，直接打开 |
+| 第三方登录 | 登录必须整个过程留在同一个 WebView 里，否则 Cookie 写在浏览器里、回调时会话也对不上。`AuthRules` 内置常见提供方的登录入口（Google 及其 187 个地区域名、YouTube 的 SetSID、Microsoft、Apple 整个登录域名；GitHub、Facebook、X、Discord、Reddit、LinkedIn、微信、QQ、微博只匹配登录路径，普通的视频、仓库链接照常交给外部）。主框架进入入口后标记为「登录流程中」，期间的所有中间页都留在 App 内，回到 allowedHosts 时结束。网站跳往登录页的那一跳由壳改为新导航，绕开部分网站自身 CSP（`form-action 'self'`）拦截跨域跳转的问题 |
+| 新窗口 | `PopupWindows`：`window.open` / `target=_blank` 先由一个不显示的 WebView 接住，按第一个地址分流：登录入口 → 盖住主页面的全屏弹窗（`window.opener` 可用，网页 `window.close()`、返回键或关闭按钮都能关掉）；站内地址 → 主 WebView 打开；站外 → 系统浏览器；非用户点击触发的 → 丢弃 |
 | 文件上传 | `FileChooser`：按 `accept` 构造选择器；接受图片 / 视频时附加拍照 / 录像（FileProvider 临时文件）；支持 `multiple` 和 `capture` |
 | 下载 | `DownloadHandler`：带上 Cookie / UA / Referer；正确解析 `filename*=UTF-8''...`（中文文件名） |
 | 视频全屏 | `onShowCustomView` 把视频 View 放进全屏容器并隐藏系统栏，返回键或网页退出全屏时恢复 |
@@ -373,8 +377,11 @@ build.sh                      ← 本地一键构建
 ## 已知限制
 
 - **收不到网页推送通知（Web Push）。** Android WebView 不支持 Push API 和 Notification API，`Notification.requestPermission()` 不会有效果，网站的推送通知收不到。对于你能控制域名的自托管服务，可以改用 TWA，见[下一节](#附自托管服务改用-twa-获得推送通知)。
-- **Google 账号登录会被拒绝。** Google 会拦截嵌入式 WebView 里的 OAuth 登录（报错 `disallowed_useragent`），改 User-Agent 也不可靠。用「Sign in with Google」的网站请改用浏览器或 TWA。部分其它 OAuth 提供方也有类似限制。
-- **依赖弹出窗口的登录流程可能失败。** 为了留在同一个界面，`window.open` / `target=_blank` 会在当前 WebView 里打开，不会开新窗口。依赖 `window.opener` 回传结果的弹窗式登录（部分 SSO、支付）无法完成。
+- **第三方登录取决于提供方的策略。** 2026-10 实测，Google 登录（含两步验证）和 GitHub 登录都能在 App 内完成，不需要改 User-Agent。但提供方随时可能收紧对嵌入式 WebView 的限制：Google 官方政策本身不允许 WebView 登录，Facebook 自 2021 年起已限制。遇到登录页报 `disallowed_useragent` 或「此浏览器或应用可能不安全」，请改用浏览器或 TWA。
+- **内置登录规则之外的登录入口会被交给浏览器。** 学校、公司自己的 SSO 入口等，需要把入口域名加进 `allowedHosts`；进入登录流程之后的中间页不用加。
+- **弹窗式登录只识别内置的登录提供方。** 其它依赖 `window.opener` 回传结果的弹窗（例如部分支付）仍无法完成：站内的会在主页面打开，站外的交给浏览器。`target=_blank` 的 POST 表单会变成普通的 GET 打开。`window.open()` 后 5 秒内不导航的空白窗口会被丢弃。
+- **非用户点击触发的新窗口会被丢弃**（多半是广告），除非它打开的是登录页。
+- **网页自动打开其它 App 或浏览器时会先弹确认框。** 包括「点支付 → 后台下单 → 拉起支付 App」这类中间隔了网络请求的流程，WebView 不再认为是点击，需要在确认框里多点一次「打开」。
 - **Passkey / WebAuthn 支持有限**，取决于系统 WebView 版本和设备，不保证可用。
 - **`blob:` / `data:` 下载不支持。** 这类链接的数据只存在于网页内存中，DownloadManager 拿不到，会提示「暂不支持」。需要 POST 请求或自定义请求头（非 Cookie 鉴权）的下载同样会失败，因为 DownloadManager 会重新发起一次 GET 请求。
 - **注入有时机限制。** CSS 最早在首屏可见时注入，网页自带的顶栏可能会先闪一下。JS 在 `onPageFinished` 时执行。单页应用用 `pushState` 切换路由时不会再次触发，脚本需要自己监听路由变化。
@@ -400,7 +407,8 @@ build.sh                      ← 本地一键构建
 |---|---|---|
 | 内核 | 系统 WebView | 用户的 Chrome（共享 Chrome 的更新和能力） |
 | Web Push / 通知 | ✗ | ✓（由 Chrome 代发，显示为该 App 的通知） |
-| Google 登录、Passkey | 受限 | ✓ 与 Chrome 一致 |
+| 第三方登录 | 内置常见提供方规则，目前可用，但取决于提供方策略（见[已知限制](#已知限制)） | ✓ 与 Chrome 一致 |
+| Passkey | 受限 | ✓ 与 Chrome 一致 |
 | Cookie / 存储 | 每个 App 独立 | 与 Chrome 共享同一站点的存储 |
 | 前提 | 任何网站 | **必须能在该域名下放文件**（Digital Asset Links），需要 HTTPS 和 PWA manifest，手机上要有 Chrome |
 | 注入 CSS / JS | ✓ | ✗（只能改网站本身） |

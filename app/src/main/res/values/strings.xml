@@ -9,4 +9,8 @@
     <string name="download_unsupported">This kind of download is not supported</string>
     <string name="download_permission_denied">Storage permission is required to download files</string>
     <string name="download_failed">Download failed: %1$s</string>
+    <string name="popup_close">Close</string>
+    <string name="external_confirm_app">This page wants to open another app</string>
+    <string name="external_confirm_browser">This page wants to open the browser</string>
+    <string name="external_confirm_open">Open</string>
 </resources>

@@ -6,7 +6,8 @@
   ├── content（按系统栏 / 刘海 / 键盘的 insets 留出 padding）
   │   ├── swipe_refresh → web_view
   │   ├── progress（顶部细进度条）
-  │   └── error_view（加载失败时盖在最上面）
+  │   ├── error_view（加载失败时盖在最上面）
+  │   └── popup_container（网页弹窗式登录时，盖住主页面的全屏弹窗：顶栏 + popup_web_holder）
   └── fullscreen_container（网页视频全屏时使用，铺满整个屏幕，不受 padding 影响）
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -74,6 +75,53 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="@string/error_retry" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/popup_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?android:attr/colorBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="16dp">
+
+                <TextView
+                    android:id="@+id/popup_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:singleLine="true"
+                    android:textAppearance="?android:attr/textAppearanceMedium" />
+
+                <ImageButton
+                    android:id="@+id/popup_close"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/popup_close"
+                    android:src="@drawable/ic_close" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="?android:attr/listDivider" />
+
+            <FrameLayout
+                android:id="@+id/popup_web_holder"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
         </LinearLayout>
     </FrameLayout>
 

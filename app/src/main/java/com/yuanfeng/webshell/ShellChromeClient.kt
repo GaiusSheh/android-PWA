@@ -3,6 +3,7 @@ package com.yuanfeng.webshell
 import android.Manifest
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Message
 import android.view.View
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
@@ -24,11 +25,16 @@ class ShellChromeClient(
         fun onProgress(percent: Int)
         fun enterFullscreen(view: View, callback: CustomViewCallback)
         fun exitFullscreen()
+        /** 网页要打开新窗口（window.open / target=_blank），见 [PopupWindows] */
+        fun onCreateWindow(isUserGesture: Boolean, resultMsg: Message): Boolean
     }
 
     override fun onProgressChanged(view: WebView, newProgress: Int) {
         host.onProgress(newProgress)
     }
+
+    override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean =
+        host.onCreateWindow(isUserGesture, resultMsg)
 
     // ---- 视频全屏：网页请求全屏时，WebView 交给我们一个承载视频的 View，由我们铺满屏幕 ----
 

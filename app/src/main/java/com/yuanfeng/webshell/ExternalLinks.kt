@@ -32,6 +32,24 @@ object ExternalLinks {
         }
     }
 
+    /** 给确认对话框看的简短描述：网页显示域名，intent: 显示目标 App 的包名，其它显示截短的原始链接 */
+    fun describe(uri: Uri): String {
+        val scheme = uri.scheme?.lowercase()
+        if (scheme == "http" || scheme == "https") return uri.host ?: uri.toString()
+        if (scheme == "intent") {
+            val intent = try {
+                Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME)
+            } catch (e: Exception) {
+                null
+            }
+            intent?.`package`?.let { return it }
+        }
+        val raw = uri.toString()
+        return if (raw.length > MAX_DESCRIBE_LENGTH) raw.take(MAX_DESCRIBE_LENGTH) + "…" else raw
+    }
+
+    private const val MAX_DESCRIBE_LENGTH = 80
+
     private fun openIntentUri(activity: Activity, url: String, loadInApp: (String) -> Unit) {
         val intent = try {
             Intent.parseUri(url, Intent.URI_INTENT_SCHEME)

@@ -8,4 +8,8 @@
     <string name="download_unsupported">暂不支持这种下载方式</string>
     <string name="download_permission_denied">需要存储权限才能下载文件</string>
     <string name="download_failed">下载失败：%1$s</string>
+    <string name="popup_close">关闭</string>
+    <string name="external_confirm_app">网页想打开其它应用</string>
+    <string name="external_confirm_browser">网页想在浏览器中打开</string>
+    <string name="external_confirm_open">打开</string>
 </resources>
