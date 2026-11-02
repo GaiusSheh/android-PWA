@@ -58,6 +58,9 @@
     <string name="install_permission_title">需要「安装未知应用」权限</string>
     <string name="install_permission_message">工厂要把生成的 App 装到手机上，需要你在接下来的系统设置页里允许「网页壳工厂」安装未知应用。设置好后返回，再点一次「生成并安装」。</string>
     <string name="install_permission_go">去设置</string>
+    <string name="device_key_title">将在这台手机上创建签名密钥</string>
+    <string name="device_key_message">生成的 App 需要签名。这个工厂会在这台手机上创建一把专用密钥，之后生成的 App 都用它签名。\n\n密钥只保存在这台手机上，无法导出或备份。卸载工厂、清除工厂数据或换手机后，之前生成的 App 将不能再覆盖更新，只能卸载后重新生成（登录状态会丢失）。</string>
+    <string name="device_key_continue">知道了，继续</string>
     <string name="install_success">%1$s 已安装</string>
     <string name="install_failed">安装失败：%1$s</string>
     <string name="build_failed">生成失败：%1$s</string>

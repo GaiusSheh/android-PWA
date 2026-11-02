@@ -85,3 +85,35 @@
 - [✓] **人类验收**：用户验收通过
 
 **状态**: 开发完成，验收通过
+
+## 2026-11-02 Phase 3：可公开发布的工厂
+
+### 2026-11-02 11:40 公开版工厂（不含私钥，生成的 App 用手机自生成的密钥签名）
+
+**变更类型**: 功能增强 / 发布
+**影响范围**: 工厂（`factory/`）的签名密钥来源、构建参数；`build.sh`；README。壳与 PC 端构建不变，私有版工厂行为不变
+
+#### 背景
+v1.0.0 的 Release 里没有工厂：工厂 APK 内含开发者签名私钥，公开后任何人都能签出「同包名同签名」的更新接管 App 数据。用户希望工厂本身也能直接下载。
+
+#### 实现功能详细
+
+**两种构建** [✓]
+- `factory/build.gradle.kts`：Gradle 属性 `webshell.publicFactory`。公开版不注册导出私钥的任务，APK 里没有 `assets/signing/`；输出 `dist/WebShell_Factory-public-<版本>.apk`（私有版仍是 `WebShell_Factory-<版本>.apk`）；没有正式 keystore 时构建失败（工厂自己要能跨版本升级）
+- `build.sh factory-public`；与 `factory` 同时传入时报错
+
+**设备密钥** [✓]
+- `gen/SigningKeys.kt`（新）：有打包的私钥就用它；否则用 AndroidKeyStore 里固定别名的 RSA 2048 密钥（SHA-256 / SHA-512，PKCS#1，自签名证书 `CN=WebShell device key`，30 年），第一次需要时生成；`AppBuilder` 改用它
+- `EditActivity`：公开版第一次生成前提示「密钥只在这台手机上，卸载工厂 / 清除数据 / 换手机后旧 App 不能再更新」
+
+**文档** [✓]
+- README：两个版本的区别、`INSTALL_FAILED_UPDATE_INCOMPATIBLE` 的常见原因、构建命令、手动发布流程（本地构建 + `gh release`，逐个写文件名）
+
+#### 测试验证结果
+- [✓] **构建产物**：公开版 APK 不含 `assets/signing/`；私有版仍含 `key.pk8`、`cert.der`
+- [✓] **JVM 单元测试**：工厂测试通过（私有版路径不变）
+- [✓] **WSA**：公开版首次生成弹提示；生成的 App v2 + v3 签名校验通过、证书为设备密钥；再生成一次静默覆盖安装（顺带验证「免确认更新」）；私有版签名仍为开发者证书
+- [✓] **真机（nubia NX721J，硬件密钥）**：公开版生成的 App 签名校验通过；手机上已有私有版生成的同名 App 时安装被系统拒绝、原 App 不受影响
+- [✓] **人类验收**：用户用公开版重新生成手机上全部 9 个 App
+
+**状态**: 开发完成，验收通过，随 v1.1.0 发布

@@ -4,7 +4,7 @@
 
 两种用法，生成的 App 完全一样：
 
-- **手机上直接做（工厂 App）**：装上「网页壳工厂」，输入网址（或在浏览器里点「分享」→「做成 App」）。工厂会读取网页，自动填好名称、图标和主题色，你确认或修改后点「生成并安装」。全程不需要电脑。
+- **手机上直接做（工厂 App）**：从 [Releases](https://github.com/GaiusSheh/android-PWA/releases) 下载「网页壳工厂」装上，输入网址（或在浏览器里点「分享」→「做成 App」）。工厂会读取网页，自动填好名称、图标和主题色，你确认或修改后点「生成并安装」。全程不需要电脑。
 - **电脑上批量构建**：在 `apps.json` 里写配置，执行 `./build.sh` 一次构建全部 App。
 
 技术栈：Kotlin + View 系统，minSdk 26（Android 8.0），targetSdk / compileSdk 37，AGP 9.4.1 / Gradle 9.6.0 / JDK 17+（推荐 21）。
@@ -30,7 +30,12 @@
 
 ### 安装工厂
 
-把 `dist/WebShell_Factory-<版本>.apk` 传到手机上点开安装，或者用 [adb 安装](#用-adb-安装)。构建方法：`./build.sh factory`。
+工厂有两个版本，代码相同，区别只在给生成的 App 签名用的密钥（详见下面[两个版本的区别](#公开版和私有版的区别)）：
+
+- **公开版**（`WebShell_Factory-public-<版本>.apk`）：直接从 [Releases](https://github.com/GaiusSheh/android-PWA/releases) 下载，传到手机上点开安装。不需要电脑，大多数人用这个。
+- **私有版**（`WebShell_Factory-<版本>.apk`）：用你自己的 keystore 在电脑上构建：`./build.sh factory`。只有需要「手机生成的 App 和电脑构建的 App 签名相同」时才用。
+
+也可以用 [adb 安装](#用-adb-安装)。
 
 ### 使用
 
@@ -56,9 +61,30 @@
 - `assets/webshell/config.json`，也就是网址、域名和颜色这些配置；
 - 图标 PNG。
 
-改完后，工厂用打包在它自己里面的签名密钥重新签名，再交给系统安装器安装。详见[工作原理](#工作原理写给熟悉-ccmake-的人)。
+改完后，工厂重新签名，再交给系统安装器安装。详见[工作原理](#工作原理写给熟悉-ccmake-的人)。
 
-> **不要把工厂 APK 分享给别人。** 生成 App 用的签名私钥就打包在工厂 APK 里。这样做的好处是：手机上生成的 App 和电脑上构建的 App 签名相同，可以互相覆盖安装；工厂卸载重装后，也能继续更新以前生成的 App。代价是，拿到工厂 APK 的人也就拿到了你的签名私钥。
+### 公开版和私有版的区别
+
+Android 只允许签名相同的 APK 覆盖安装，所以「用哪把密钥签名」决定了生成的 App 以后能不能更新。
+
+| | 公开版 | 私有版 |
+|---|---|---|
+| 签名密钥 | 第一次生成 App 时在这台手机上创建（AndroidKeyStore，存在手机的安全芯片里，无法导出） | 构建时从你的 keystore 导出，打包在工厂 APK 里 |
+| 能否分享工厂 APK | 可以，里面没有私钥 | **不可以**，拿到它就等于拿到你的签名私钥 |
+| 手机生成的 App 与电脑构建的同一个 App | 签名不同，不能互相覆盖安装 | 签名相同 |
+| 卸载工厂、清除工厂数据、换手机之后 | 密钥丢失，以前生成的 App **不能再更新**，只能卸载后重新生成（登录状态丢失） | 不受影响，重装工厂后照常更新 |
+
+公开版第一次生成 App 前会弹窗说明上面最后一条。**用公开版时，不要卸载工厂或清除它的数据**；升级工厂直接覆盖安装新版即可，密钥会保留。
+
+「生成并安装」时报 `安装失败：INSTALL_FAILED_UPDATE_INCOMPATIBLE…`，说明手机上已经装了一个同包名、但签名不同的 App。常见于：
+
+- 用公开版之前卸载过工厂或清除过数据（密钥换了）；
+- 这个 App 是从别处装的，比如 Release 里的示例 App，或电脑上 `./build.sh` 构建的；
+- 在同一台手机上换用过另一个版本的工厂。
+
+原来的 App 不会受影响。确认不需要它的登录状态后，先卸载它，再点「生成并安装」。
+
+两个版本包名相同、都用正式 keystore 签名，可以互相覆盖安装，所以**一台手机上请只用其中一个**：换了版本之后，之前生成的 App 都会因为签名不同而无法更新。
 
 ---
 
@@ -88,7 +114,8 @@ sdkmanager --sdk_root=C:/Android/sdk "platform-tools" "platforms;android-37.0" "
 ```bash
 ./build.sh                    # 构建 apps.json 中的全部 App + 工厂 App
 ./build.sh wikipedia          # 只构建一个（可写多个 id）
-./build.sh factory            # 只构建工厂 App
+./build.sh factory            # 只构建工厂 App（私有版，内含签名私钥）
+./build.sh factory-public     # 构建公开版工厂（不含私钥，必须配置 keystore）
 ./build.sh --list             # 列出所有 id
 ```
 
@@ -189,7 +216,7 @@ keytool -genkeypair -v \
 
 > **务必备份 `.jks` 文件和密码。** 丢失后无法再发布能覆盖安装的更新，只能卸载重装，所有 App 的登录状态都会丢失。不要把它放进 git 仓库。
 
-构建工厂 App 时，会从这个 keystore 导出私钥和证书，打包进工厂（见上面[关于私钥的提醒](#它是怎么做到的)）。所以换了 keystore 之后要重新构建工厂。
+构建私有版工厂时，会从这个 keystore 导出私钥和证书，打包进工厂（见[两个版本的区别](#公开版和私有版的区别)）。所以换了 keystore 之后要重新构建工厂。公开版工厂不打包私钥，但工厂 APK 本身也用这个 keystore 签名：工厂的新旧版本签名必须相同才能覆盖升级，所以没有 keystore 时 `./build.sh factory-public` 会直接报错。
 
 ---
 
@@ -222,10 +249,25 @@ for f in dist/*.apk; do adb install -r "$f"; done   # 全部安装
 
 `.github/workflows/build.yml`：
 
-CI 只构建 `apps.json` 里的 App，**不构建工厂 App**。工厂 APK 里有签名私钥，而公开仓库的 Actions artifact 和 Release 任何人都能下载。工厂请在本地用 `./build.sh factory` 构建。
+CI 只构建 `apps.json` 里的 App，**不构建工厂 App**。私有版工厂里有签名私钥，而公开仓库的 Actions artifact 和 Release 任何人都能下载。工厂请在本地构建。
 
 - **push 到 main**：用 `apps.json` 生成 matrix，每个 App 一个并行 job，构建后上传为 Actions artifact（在这次运行的页面下载）。
-- **push `v*` tag**（如 `git tag v1.2.0 && git push --tags`）：同上，并把全部 APK 上传到同名 GitHub Release。打 tag 构建时**必须**配置 keystore，不允许 debug 签名混进正式发布。
+- **push `v*` tag**（如 `git tag v1.2.0 && git push --tags`）：同上，并把全部 APK 上传到同名 GitHub Release。打 tag 构建时**必须**配置 keystore，不允许 debug 签名混进正式发布。没有配置 Secrets 时这次构建会失败，可以在 Actions 页面取消，改为下面的手动发布。
+
+### 手动发布（本地构建）
+
+不在 CI 里放 keystore 时，在本地构建后用 [GitHub CLI](https://cli.github.com/) 上传：
+
+```bash
+git tag v1.2.0                          # 先打 tag，APK 的版本号才是 1.2.0
+./build.sh wikipedia hackernews         # 示例 App（不带参数的 ./build.sh 会顺带构建私有版工厂）
+./build.sh factory-public               # 公开版工厂
+git push && git push --tags
+gh release create v1.2.0 --notes-file notes.md \
+  dist/WebShell_Factory-public-1.2.0.apk dist/Wikipedia-1.2.0.apk dist/Hacker_News-1.2.0.apk
+```
+
+**只上传 `WebShell_Factory-public-*.apk`，不要上传 `WebShell_Factory-<版本>.apk`（私有版）。** 两者文件名不同就是为了防止发错；上传时逐个写文件名，不要用 `dist/*.apk` 这类通配符。
 
 ### 配置 Secrets
 
@@ -296,9 +338,9 @@ base64 -i ~/keys/webshell-release.jks
 
 **工厂 App**：
 
-1. 构建时，`template` flavor 的 release APK（模板）和从 keystore 导出的私钥（`key.pk8` + `cert.der`）被打包进工厂的 assets。`PackTemplateTask` 会检查模板里的图标路径没有被缩短。
+1. 构建时，`template` flavor 的 release APK（模板）被打包进工厂的 assets，`PackTemplateTask` 会检查模板里的图标路径没有被缩短。私有版还会打包从 keystore 导出的私钥（`key.pk8` + `cert.der`）；公开版（Gradle 属性 `-Pwebshell.publicFactory=true`）不打包。
 2. 在手机上，`SiteInspector` 用 jsoup 读取网页，预填名称、图标和颜色。
-3. `ApkGenerator` 改写模板：`BinaryManifest` 改写二进制 Manifest，具体是替换字符串池里的包名前缀，并追加新的名称字符串；然后替换 `config.json` 和图标，重写 zip 并把未压缩条目按 4 字节对齐；最后用 Google 官方的 apksig 做 v2 + v3 签名。
+3. `ApkGenerator` 改写模板：`BinaryManifest` 改写二进制 Manifest，具体是替换字符串池里的包名前缀，并追加新的名称字符串；然后替换 `config.json` 和图标，重写 zip 并把未压缩条目按 4 字节对齐；最后用 Google 官方的 apksig 做 v2 + v3 签名。签名密钥由 `SigningKeys` 选择：有打包的私钥就用它，否则用 AndroidKeyStore 里的设备密钥（RSA 2048，第一次用时生成，自签名证书 `CN=WebShell device key`）。apksig 通过标准的 `java.security.Signature` 签名，所以能直接用这把不可导出的私钥。
 4. `Installer` 通过系统 `PackageInstaller` 安装。
 
 `core/` 目录下的类（`BinaryManifest`、`ApkGenerator`、`SiteRules`）不依赖 Android API，有 JVM 单元测试：`./gradlew :factory:testDebugUnitTest`。测试会用真实的模板 APK 生成一个 App，再校验签名、Manifest、对齐，并用 SDK 的 aapt2 交叉验证。
@@ -318,7 +360,7 @@ buildSrc/src/main/kotlin/webshell/
   CopyApkTask.kt              ← 拷贝到 dist/
 app/build.gradle.kts          ← flavor（含 template）、签名、任务接线
 factory/                      ← 工厂 App
-  build.gradle.kts            ← 打包模板 APK 和私钥；单元测试参数
+  build.gradle.kts            ← 打包模板 APK 和私钥（公开版不打包私钥）；单元测试参数
   src/main/java/com/yuanfeng/webshell/factory/
     core/                     ← 纯 JVM 逻辑（有单元测试）
       BinaryManifest.kt       ←   读写二进制 AndroidManifest.xml
@@ -327,6 +369,7 @@ factory/                      ← 工厂 App
     web/SiteInspector.kt      ← 读取网页的名称、图标、主题色
     gen/IconRenderer.kt       ← 生成自适应图标位图（手机端）
     gen/AppBuilder.kt         ← 记录 → APK 文件
+    gen/SigningKeys.kt        ← 选择签名密钥：打包的私钥或设备密钥
     install/Installer.kt      ← PackageInstaller 安装及结果回调
     data/AppRepository.kt     ← 工厂里保存的 App 记录
     ui/                       ← 列表页、编辑页
@@ -390,7 +433,8 @@ build.sh                      ← 本地一键构建
 - **首字母图标在 CI 上可能退回 id 首字母。** Linux CI 默认没有中文字体，中文名的首字生成不了，会改用 id 的首字母。本地 Windows 构建不受影响；也可以给这个 App 配 `icon`。
 - **网页内核是系统的「Android System WebView」**，随系统或应用商店更新。网页兼容性取决于手机上的 WebView 版本，不是 App 自带的。
 - **debug 签名兜底的 APK** 不能被正式签名的版本覆盖安装，见[构建](#构建)。
-- **同一个 App 不要在手机和电脑两边交替构建。** 两边签名相同，但工厂生成的 versionCode 是「模板版本 × 1000 + 生成次数」，比电脑构建的「commit 数」大得多。在工厂生成过之后，再装电脑构建的同 id 版本，系统会以版本降级为由拒绝。选定一边一直用即可。
+- **公开版工厂的密钥无法备份。** 卸载工厂、清除工厂数据或换手机后，以前生成的 App 只能卸载后重新生成，登录状态会丢失。见[两个版本的区别](#公开版和私有版的区别)。
+- **同一个 App 不要在手机和电脑两边交替构建。** 用公开版工厂时两边签名不同，本来就不能互相覆盖。用私有版时两边签名相同，但工厂生成的 versionCode 是「模板版本 × 1000 + 生成次数」，比电脑构建的「commit 数」大得多。在工厂生成过之后，再装电脑构建的同 id 版本，系统会以版本降级为由拒绝。选定一边一直用即可。
 - **有人机验证的网站，读取会慢一些。** 工厂先直接请求网页。如果拿到的是 Cloudflare「Just a moment...」这类验证页，会弹出一个小窗，用浏览器内核打开网页。自动验证一般几秒就能通过；遇到需要勾选的验证，在小窗里点一下即可。取消或 30 秒内没通过时，名称按域名填写，图标用首字母，需要手动修改。必须登录才能看到首页的网站，读到的是登录页的信息。生成的 App 本身不受影响，在 App 里正常完成验证或登录即可。
 - **工厂不渲染 SVG 图标。** 网站只提供 SVG 图标时会退回 favicon 或首字母图标，可以从相册另选一张。
 - **关闭资源路径缩短用的是 AGP 已标记为弃用的开关**（`android.enableResourceOptimizations=false`）。如果将来某个 AGP 版本移除了它，构建工厂时 `PackTemplateTask` 会直接报错，而不是悄悄产出一个坏掉的工厂。届时需要改为解析 `resources.arsc` 来定位图标文件。

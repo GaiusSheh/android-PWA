@@ -12,15 +12,10 @@ import com.yuanfeng.webshell.factory.data.SiteApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.security.KeyFactory
-import java.security.PrivateKey
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
-import java.security.spec.PKCS8EncodedKeySpec
 
 /**
  * 把一条 [SiteApp] 记录变成一个已签名的 APK 文件（Android 侧的胶水代码）：
- * 准备模板 APK 和签名密钥 → 渲染图标 → 生成 config.json → 调用 [ApkGenerator]。
+ * 准备模板 APK 和签名密钥（见 [SigningKeys]）→ 渲染图标 → 生成 config.json → 调用 [ApkGenerator]。
  */
 class AppBuilder(private val context: Context) {
 
@@ -57,7 +52,7 @@ class AppBuilder(private val context: Context) {
             iconForeground = fg,
             iconBackground = bg,
         )
-        val (key, cert) = signingKey()
+        val (key, cert) = SigningKeys.load(context)
         val out = File(context.cacheDir, "generated/${app.id}.apk")
         ApkGenerator.generate(templateApk(), spec, key, cert, out, File(context.cacheDir, "work"))
         out
@@ -81,17 +76,6 @@ class AppBuilder(private val context: Context) {
             check(tmp.renameTo(file)) { "无法写入模板文件 $file" }
         }
         return file
-    }
-
-    /** 签名密钥由构建时从 keystore 导出（见 buildSrc/Signing.kt 的 ExportSigningKeyTask） */
-    private fun signingKey(): Pair<PrivateKey, X509Certificate> {
-        val keyBytes = context.assets.open("signing/key.pk8").use { it.readBytes() }
-        val algorithm = if (runCatching { KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(keyBytes)) }.isSuccess) "RSA" else "EC"
-        val key = KeyFactory.getInstance(algorithm).generatePrivate(PKCS8EncodedKeySpec(keyBytes))
-        val cert = context.assets.open("signing/cert.der").use {
-            CertificateFactory.getInstance("X.509").generateCertificate(it) as X509Certificate
-        }
-        return key to cert
     }
 
     companion object {

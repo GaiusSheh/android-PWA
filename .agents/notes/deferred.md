@@ -1,6 +1,8 @@
 # 暂缓 / 候选事项
 
-- 在真机上验证「免确认更新」和「工厂重装后 versionCode 递增更新」
+- 在真机上验证「免确认更新」（WSA 已于 2026-11-02 验证）和「工厂重装后 versionCode 递增更新」
+- CI：仓库没配 keystore Secrets，push `v*` tag 的构建必失败、要手动取消；可改为没有 Secrets 时跳过 Release job（目前按 README「手动发布」本地构建上传）
+- 公开版工厂：密钥无法备份，换手机只能重装所有 App；可考虑导出 / 导入记录时一并说明
 - 用解析 resources.arsc 定位图标文件，替代弃用的 `android.enableResourceOptimizations=false`
 - 工厂：导入 / 导出记录（换手机时迁移）
 - 工厂：SVG 图标渲染

@@ -2,7 +2,7 @@
 
 ## 项目状态概览
 **目标**: 把网站做成独立安装的 Android App（每站一个 APK，独立进程 / 数据 / 通知 / 权限）
-**当前状态**: Phase 2 完成并验收
+**当前状态**: Phase 3 完成并验收，发布 v1.1.0（含公开版工厂）
 **项目性质**: 个人工具，开源
 **技术约束**: 每 App 差异只能在 config.json / Manifest 字面值 / 图标 PNG（工厂改写要求）
 **分支架构**: 单分支 main
@@ -17,9 +17,22 @@
 
 ## 开发计划
 
-（无进行中的阶段）
+无进行中的阶段。
 
 ## 开发历史
+
+### [✓] Phase 3: 可公开发布的工厂 (已完成)
+**详细计划**: `.dev/plans/implemented/phase3-public-factory.md`
+**完成时间**: 2026-11-02 11:40（实现与 WSA 测试约 2 小时，真机测试约 30 分钟）
+**技术成果**: 工厂 APK 可以放进 GitHub Release：公开版不含私钥，生成的 App 用手机 AndroidKeyStore 里自生成、不可导出的密钥签名
+- [✓] **两种构建**: `-Pwebshell.publicFactory=true` / `./build.sh factory-public` 不打包私钥、换输出文件名、无正式 keystore 时报错；私有版不变
+- [✓] **运行时选密钥**: `gen/SigningKeys` 有打包私钥用私钥，否则用设备密钥（RSA 2048，首次生成，`CN=WebShell device key`）；首次生成前提示密钥无法备份
+- [✓] **验收确认**: WSA 与真机（nubia，硬件密钥）生成的 App v2 + v3 签名校验通过；用户用公开版重新生成了手机上全部 9 个 App
+
+**技术调整/发现/突破**:
+- apksig 可直接使用 AndroidKeyStore 的不可导出私钥，不需要「普通密钥 + 自造证书」的备选方案
+- **原方案**：~~用户自己继续用私有版~~ **[!] 已变化**：用户手机改为只用公开版
+- 顺带验证 Phase 1 遗留的「免确认更新」（WSA）
 
 ### [✓] Phase 2: 第三方登录（OAuth / SSO）在 App 内完成 (已完成)
 **详细计划**: `.dev/plans/implemented/phase2-third-party-login.md`

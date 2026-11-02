@@ -27,6 +27,11 @@
 - 熄屏或 App 在后台时 WebView DevTools 端口不响应、`Runtime.evaluate` 挂起
 - 覆盖安装保留 App 数据（Cookie），从零测登录前先 `adb shell pm clear <包名>`
 - `adb push` 保留源文件修改时间，手机上看到的是 APK 构建时间
+- 系统日志几乎不记录安装失败原因；工厂的「安装失败：…」原因要看 Toast 全文，或 `uiautomator dump` 读当前页面
+
+## 签名
+- 手机上已有同包名、签名不同的 App 时，工厂「生成并安装」报安装失败（`INSTALL_FAILED_UPDATE_INCOMPATIBLE`），原 App 不受影响。常见于换用另一版本工厂（私有 ↔ 公开）、公开版工厂卸载重装后。查已装 App 的签名：`adb pull $(pm path ...)` 后 `apksigner verify --print-certs`
+- 开发者证书和设备密钥证书 DN 曾经都叫 `CN=WebShell`；现在设备密钥是 `CN=WebShell device key`，仍以 SHA-256 指纹为准（开发者 `29be4aeb…`）
 
 ## WebView 行为
 - 服务器重定向的请求 `WebResourceRequest.hasGesture()` 为 false，需要自己沿用导航链开头的点击状态（`ShellWebViewClient.mainFrameNavByGesture`）
@@ -35,4 +40,5 @@
 
 ## 本机 Claude Code Bash 环境
 - `;` 之后的命令拿不到前面 export 的变量；裸 `bash` / shebang 子进程也拿不到。用 `JAVA_HOME=... /usr/bin/bash ./gradlew ...` 显式传递
-- Git Bash 会把 `/sdcard/...` 参数转换成 Windows 路径，adb 推送设备路径时注意
+- Git Bash 会把 `/sdcard/...` 参数转换成 Windows 路径，adb 推送设备路径时注意：命令前加 `export MSYS_NO_PATHCONV=1;`
+- Android SDK 在 `C:/Android/sdk`（`local.properties`），apksigner 在 `build-tools/<版本>/apksigner.bat`

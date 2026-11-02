@@ -148,12 +148,62 @@
 
 ---
 
+## Session: 2026-10-31 v1.0.0 发布与公开版工厂（Phase 3）
+
+**对话元数据**:
+- 时间: 2026-10-31 - 2026-11-02
+- 关键词: `factory-path`, `release`, `v1.0.0`, `AndroidKeyStore`, `public-factory`, `apksig`
+- 工作目录: `~/OneDrive/Codes/my-tools/android-PWA`
+- 项目规则入口: `.agents/AGENTS.md`
+- 参与 agent:
+  - Claude Code (env: windows-native):
+    - Session ID: `39c9b59b-6a9c-458b-912d-daa312259497`
+    - 原始记录: `~/.claude/projects/c--Users-Shi-Y-OneDrive-Codes-my-tools-android-PWA/39c9b59b-6a9c-458b-912d-daa312259497.jsonl`
+    - 恢复命令: `claude --resume 39c9b59b-6a9c-458b-912d-daa312259497`
+
+**快速恢复对话**：同环境用上方恢复命令；跨环境走 `skills/handover` 软接力，不 resume。
+
+### 核心技术决策
+
+#### 1. 验证缺口：Phase 2 之前只测过 PC 构建的 debug 包
+- 用户手机上工厂生成的 PF 登录仍失败 → 承认此前从未走「工厂生成的 release App」这条路径
+- WSA 上用工厂 r2 生成复现：正常。手机失败真因：手机装的是旧工厂（关于页显示版本 0），dist 里同时有 3 个工厂 APK 拿错了 → 删掉 `WebShell_Factory-0-nogit.apk`、`-r1.apk`，用户确认手机正常
+- r1 在 commit 前构建，versionCode 与旧版同为 1 → 重建为 r2（versionCode 2），证书与旧版一致（`29be4aeb…1fb0`）
+- 教训：验收「工厂生成的 App」必须真的用工厂生成；dist 里同名产物只留最新
+
+#### 2. v1.0.0 发布（用户选方案 A：本地构建、手动发 Release）
+- CI 遇 `v*` tag 要求正式 keystore，仓库没配 secrets → tag 构建失败，已取消
+- Release：https://github.com/GaiusSheh/android-PWA/releases/tag/v1.0.0 ；私有工厂含私钥，不进 Release
+
+#### 3. Phase 3：可公开发布的工厂（计划 `.dev/plans/implementing/phase3-public-factory.md`）
+- 用户问「没什么相对简单的办法吗」→ 方案：公开版不打包私钥，手机上用 AndroidKeyStore 生成不可导出的 RSA 2048 密钥签生成的 App；用户确认「开工吧，第二点不用」= **不另起包名**
+- `-Pwebshell.publicFactory=true` / `./build.sh factory-public`；公开版没有正式 keystore 时构建失败；输出 `WebShell_Factory-public-<版本>.apk`
+- `gen/SigningKeys.kt`：有 `assets/signing/key.pk8` 用打包密钥，否则用设备密钥；`EditActivity` 首次生成前弹提示
+- 设备密钥证书 DN 改为 `CN=WebShell device key`（开发者证书也叫 `CN=WebShell`，否则只能靠指纹区分）
+
+### 技术调整/突破
+- apksig 能直接用 AndroidKeyStore 的不可导出私钥签名（WSA 实测 v2 + v3 校验通过）
+- WSA 同一 App 再生成一次静默覆盖安装（2001 → 2002）→ 顺带验证 Phase 1 遗留的「免确认更新」
+- 生成的 App versionCode = 工厂 versionCode × 1000 + 修订号；未 commit 时 versionName 沿用 tag（1.0.0）
+
+#### 4. 真机测试与用户转用公开版（11-02）
+- 用户先用 ezgif 测：ezgif 已由私有版生成过 → 「安装失败」（签名不符，原 App 不变），属预期；用户卸载后重生成成功，证书 `CN=WebShell device key`、指纹 `893452bc…`（与 WSA 的 `b87c142e…` 不同），nubia 硬件密钥下 apksig 正常
+- 我原计划让用户装回私有版 r2，但用户已经用公开版把 9 个 App 全部重装（逐个拉 APK 核对，都是 `893452bc…`）→ 用户手机从此只用公开版，r2 已从手机 Download 删除；规则里写明不要再给它装私有版
+- 选择发布方式 B：commit 后发 v1.1.0（tag、代码、APK 一致），附公开版工厂 + 两个示例 App
+
+### 技术洞察
+- Git Bash 下 `adb push ... /sdcard/Download/` 被改写成 Windows 路径 → `export MSYS_NO_PATHCONV=1`
+- nubia 系统日志几乎不记录安装失败；读 Toast 全文或 `uiautomator dump`
+- README 发布示例原写 `dist/*-1.2.0.apk`，会匹配到同版本私有版工厂 → 改为逐个写文件名
+
+---
+
 ## 统计信息
 
-- **记录的主题 Session 数量**：2 个
+- **记录的主题 Session 数量**：3 个
 - **关联的 agent 会话数量**：2 个
-- **覆盖时间**：2026-10-27 ~ 2026-10-29
-- **主要主题**：Android WebView 壳、Gradle 批量 flavor、手机端 APK 改写与签名、人机验证处理、第三方登录（OAuth）与新窗口分流
+- **覆盖时间**：2026-10-27 ~ 2026-11-02
+- **主要主题**：Android WebView 壳、Gradle 批量 flavor、手机端 APK 改写与签名、人机验证处理、第三方登录（OAuth）与新窗口分流、发布流程、公开版工厂（设备密钥签名）
 
 ---
 

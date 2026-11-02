@@ -40,6 +40,7 @@ import com.yuanfeng.webshell.factory.data.AppRepository
 import com.yuanfeng.webshell.factory.data.SiteApp
 import com.yuanfeng.webshell.factory.gen.AppBuilder
 import com.yuanfeng.webshell.factory.gen.IconRenderer
+import com.yuanfeng.webshell.factory.gen.SigningKeys
 import com.yuanfeng.webshell.factory.install.Installer
 import com.yuanfeng.webshell.factory.web.BrowserFetcher
 import com.yuanfeng.webshell.factory.web.SiteInspector
@@ -450,7 +451,20 @@ class EditActivity : AppCompatActivity() {
                 .show()
             return
         }
+        // 公开版工厂第一次生成：先说明签名密钥只存在这台手机上（见 SigningKeys）
+        if (!SigningKeys.isBundled(this) && !SigningKeys.deviceKeyExists()) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.device_key_title)
+                .setMessage(R.string.device_key_message)
+                .setNegativeButton(R.string.edit_cancel, null)
+                .setPositiveButton(R.string.device_key_continue) { _, _ -> startBuild(app) }
+                .show()
+            return
+        }
+        startBuild(app)
+    }
 
+    private fun startBuild(app: SiteApp) {
         // 先保存记录（含图标原图）；包名后缀改了（仅限未安装时）就删掉旧记录
         selectedIcon?.let { repo.saveIcon(app.id, it) }
         repo.save(app)
